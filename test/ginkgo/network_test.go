@@ -2,16 +2,10 @@ package kubernetes_test
 
 import (
 	"fmt"
-//	"io/ioutil"
-//	"path/filepath"
-//	"strconv"
 	"time"
 
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
-//	"github.com/GoogleCloudPlatform/kubernetes/pkg/api/latest"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/client"
-//	"github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
-//	"github.com/GoogleCloudPlatform/kubernetes/pkg/runtime"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -72,13 +66,15 @@ var _ = Describe("Networking", func() {
       time.Sleep(time.Second)
       body, err = kubeClient.Get().Prefix("proxy").Resource("services").Name(svc.Name).Suffix("status").Do().Raw()
       if err != nil {
+        By(fmt.Sprintf("Attempt %v/%v: service/pod still starting. (error: '%v')", i, maxAttempts, err))
         continue
       }
       switch string(body) {
         case "pass":
-Fail("Test passed")
+          By(fmt.Sprintf("Passed on attempt %v. Cleaning up.", i))
           break
         case "running":
+          By(fmt.Sprintf("Attempt %v/%v: test still running", i, maxAttempts))
           continue
         case "fail":
           if body, err = kubeClient.Get().Prefix("proxy").Resource("services").Name(svc.Name).Suffix("read").Do().Raw(); err != nil {
