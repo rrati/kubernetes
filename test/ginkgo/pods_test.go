@@ -33,7 +33,7 @@ var _ = Describe("Pods", func() {
     By("loading the pod json")
     pod := loadPodOrDie(assetPath("api", "examples", "pod.json"))
     value := strconv.Itoa(time.Now().Nanosecond())
-    pod.Labels["e2esuite"] = value
+    pod.Labels["time"] = value
 
     By("submitting the pod to kubernetes")
     _, err = podClient.Create(pod)
@@ -43,7 +43,7 @@ var _ = Describe("Pods", func() {
     defer podClient.Delete(pod.Name)
 
     By("verifying the pod is in kubernetes")
-    pods, err := podClient.List(labels.SelectorFromSet(labels.Set(map[string]string{"e2esuite": value})))
+    pods, err := podClient.List(labels.SelectorFromSet(labels.Set(map[string]string{"time": value})))
     if err != nil {
       Fail(fmt.Sprintf("Failed to query for pods: %v", err))
     }
@@ -51,7 +51,7 @@ var _ = Describe("Pods", func() {
 
     By("deleting the pod")
     podClient.Delete(pod.Name)
-    pods, err = podClient.List(labels.SelectorFromSet(labels.Set(map[string]string{"e2esuite": value})))
+    pods, err = podClient.List(labels.SelectorFromSet(labels.Set(map[string]string{"time": value})))
     Expect(len(pods.Items)).To(Equal(0))
   })
 
@@ -61,18 +61,22 @@ var _ = Describe("Pods", func() {
     By("loading the pod json")
     pod := loadPodOrDie(assetPath("api", "examples", "pod.json"))
     value := strconv.Itoa(time.Now().Nanosecond())
-    pod.Labels["e2esuite"] = value
+    pod.Labels["time"] = value
 
     By("submitting the pod to kubernetes")
     _, err = podClient.Create(pod)
     if err != nil {
       Fail(fmt.Sprintf("Failed to create pod: %v", err))
     }
-    defer podClient.Delete(pod.Name)
+    defer func() {
+      By("deleting the pod")
+      defer GinkgoRecover()
+      podClient.Delete(pod.Name)
+    }()
 
     By("verifying the pod is in kubernetes")
     waitForPodRunning(kubeClient, pod.Name, 60)
-    pods, err := podClient.List(labels.SelectorFromSet(labels.Set(map[string]string{"e2esuite": value})))
+    pods, err := podClient.List(labels.SelectorFromSet(labels.Set(map[string]string{"time": value})))
     if err != nil {
       Fail(fmt.Sprintf("Failed to query for pods: %v", err))
     }

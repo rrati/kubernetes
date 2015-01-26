@@ -3,7 +3,10 @@ package kubernetes_test
 import (
         "fmt"
         "io/ioutil"
+        "math/rand"
+        "os"
         "path/filepath"
+        "strconv"
         "time"
 
         "github.com/GoogleCloudPlatform/kubernetes/pkg/api"
@@ -16,6 +19,16 @@ import (
 
 	"testing"
 )
+
+type testContextType struct {
+        authConfig string
+        certDir    string
+        host       string
+        repoRoot   string
+        provider   string
+}
+
+var testContext testContextType
 
 func assetPath(pathElements ...string) string {
   return filepath.Join("/home/rrati/repos/git/kubernetes", filepath.Join(pathElements...))
@@ -49,17 +62,36 @@ func waitForPodRunning(c *client.Client, id string, timeout int) {
     defer GinkgoRecover()
     Fail(fmt.Sprintf("Pod was not found running after %v seconds", timeout))
   })
+  waitLoop:
   for {
     time.Sleep(5 * time.Second)
     pod, _ := c.Pods(api.NamespaceDefault).Get(id)
     if pod.Status.Phase == api.PodRunning {
       timer.Stop()
-      break
+      break waitLoop
     }
   }
+}
+
+// TODO: Allow service names to have the same form as names
+//       for pods and replication controllers so we don't
+//       need to use such a function and can instead
+//       use the UUID utilty function.
+func randomSuffix() string {
+        r := rand.New(rand.NewSource(time.Now().UnixNano()))
+        return strconv.Itoa(r.Int() % 10000)
 }
 
 func TestKubernetes(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Kubernetes Suite")
 }
+
+var _ = BeforeSuite(func() {
+	authConfig := os.Getenv("HOME")+"/.kubernetes_auth"
+	certDir := ""
+	host := ""
+	repoRoot := "./"
+	provider := ""
+	testContext = testContextType{authConfig, certDir, host, repoRoot, provider}
+})
