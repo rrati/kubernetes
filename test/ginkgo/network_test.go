@@ -112,15 +112,15 @@ var _ = Describe("Networking", func() {
 			time.Sleep(2 * time.Second)
 			body, err = kubeClient.Get().Prefix("proxy").Resource("services").Name(svc.Name).Suffix("status").Do().Raw()
 			if err != nil {
-				fmt.Println(fmt.Sprintf("Attempt %v/%v: service/pod still starting. (error: '%v')", i, maxAttempts, err))
+				fmt.Printf("Attempt %v/%v: service/pod still starting. (error: '%v')\n", i, maxAttempts, err)
 			}
 			switch string(body) {
 			case "pass":
-				fmt.Println(fmt.Sprintf("Passed on attempt %v. Cleaning up.", i))
+				fmt.Printf("Passed on attempt %v. Cleaning up.\n", i)
 				passed = true
 				break Loop
 			case "running":
-				fmt.Println(fmt.Sprintf("Attempt %v/%v: test still running", i, maxAttempts))
+				fmt.Printf("Attempt %v/%v: test still running\n", i, maxAttempts)
 			case "fail":
 				if body, err = kubeClient.Get().Prefix("proxy").Resource("services").Name(svc.Name).Suffix("read").Do().Raw(); err != nil {
 				Fail(fmt.Sprintf("Failed on attempt %v. Cleaning up. Error reading details: %v", i, err))

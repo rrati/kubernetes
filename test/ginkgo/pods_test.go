@@ -33,7 +33,9 @@ var _ = Describe("Pods", func() {
     By("loading the pod json")
     pod := loadPodOrDie(assetPath("api", "examples", "pod.json"))
     value := strconv.Itoa(time.Now().Nanosecond())
+    pod.Name = pod.Name + "-" + randomSuffix()
     pod.Labels["time"] = value
+    pod.Spec.Containers[0].Ports[0].HostPort = 0
 
     By("submitting the pod to kubernetes")
     _, err = podClient.Create(pod)
@@ -61,7 +63,9 @@ var _ = Describe("Pods", func() {
     By("loading the pod json")
     pod := loadPodOrDie(assetPath("api", "examples", "pod.json"))
     value := strconv.Itoa(time.Now().Nanosecond())
+    pod.Name = pod.Name + "-" + randomSuffix()
     pod.Labels["time"] = value
+    pod.Spec.Containers[0].Ports[0].HostPort = 0
 
     By("submitting the pod to kubernetes")
     _, err = podClient.Create(pod)
