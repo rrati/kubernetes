@@ -28,6 +28,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller/framework"
 	"k8s.io/kubernetes/pkg/conversion"
 	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/watch"
 
 	"github.com/golang/glog"
@@ -449,6 +450,10 @@ func isBeingProvisioned(volume *api.PersistentVolume) bool {
 
 // Run starts all of this binder's control loops
 func (controller *PersistentVolumeClaimBinder) Run() {
+	controller.RunWithDelays(0, 0)
+}
+
+func (controller *PersistentVolumeClaimBinder) RunWithDelays(interval time.Duration, jitter float64) {
 	glog.V(5).Infof("Starting PersistentVolumeClaimBinder\n")
 	if controller.stopChannels == nil {
 		controller.stopChannels = make(map[string]chan struct{})
@@ -457,6 +462,7 @@ func (controller *PersistentVolumeClaimBinder) Run() {
 	if _, exists := controller.stopChannels["volumes"]; !exists {
 		controller.stopChannels["volumes"] = make(chan struct{})
 		go controller.volumeController.Run(controller.stopChannels["volumes"])
+		time.Sleep(wait.Jitter(interval, jitter))
 	}
 
 	if _, exists := controller.stopChannels["claims"]; !exists {

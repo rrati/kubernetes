@@ -139,9 +139,14 @@ type TokensController struct {
 
 // Runs controller loops and returns immediately
 func (e *TokensController) Run() {
+	e.RunWithDelays(0, 0)
+}
+
+func (e *TokensController) RunWithDelays(interval time.Duration, jitter float64) {
 	if e.stopChan == nil {
 		e.stopChan = make(chan struct{})
 		go e.serviceAccountController.Run(e.stopChan)
+		time.Sleep(wait.Jitter(interval, jitter))
 		go e.secretController.Run(e.stopChan)
 	}
 }

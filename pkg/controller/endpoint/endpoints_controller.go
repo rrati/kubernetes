@@ -122,14 +122,21 @@ type EndpointController struct {
 	podController     *framework.Controller
 }
 
+func (e *EndpointController) Run(workers int, stopCh <-chan struct{}) {
+	e.RunWithDelays(workers, stopCh, 0, 0)
+}
+
 // Runs e; will not return until stopCh is closed. workers determines how many
 // endpoints will be handled in parallel.
-func (e *EndpointController) Run(workers int, stopCh <-chan struct{}) {
+func (e *EndpointController) RunWithDelays(workers int, stopCh <-chan struct{}, interval time.Duration, jitter float64) {
 	defer utilruntime.HandleCrash()
 	go e.serviceController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	go e.podController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	for i := 0; i < workers; i++ {
 		go wait.Until(e.worker, time.Second, stopCh)
+		time.Sleep(wait.Jitter(interval, jitter))
 	}
 	go func() {
 		defer utilruntime.HandleCrash()

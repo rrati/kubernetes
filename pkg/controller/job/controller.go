@@ -136,11 +136,18 @@ func NewJobController(kubeClient clientset.Interface, resyncPeriod controller.Re
 
 // Run the main goroutine responsible for watching and syncing jobs.
 func (jm *JobController) Run(workers int, stopCh <-chan struct{}) {
+	jm.RunWithDelays(workers, stopCh, 0, 0)
+}
+
+func (jm *JobController) RunWithDelays(workers int, stopCh <-chan struct{}, interval time.Duration, jitter float64) {
 	defer utilruntime.HandleCrash()
 	go jm.jobController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	go jm.podController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	for i := 0; i < workers; i++ {
 		go wait.Until(jm.worker, time.Second, stopCh)
+		time.Sleep(wait.Jitter(interval, jitter))
 	}
 	<-stopCh
 	glog.Infof("Shutting down Job Manager")

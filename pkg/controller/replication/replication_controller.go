@@ -204,12 +204,19 @@ func (rm *ReplicationManager) SetEventRecorder(recorder record.EventRecorder) {
 
 // Run begins watching and syncing.
 func (rm *ReplicationManager) Run(workers int, stopCh <-chan struct{}) {
+	rm.RunWithDelays(workers, stopCh, 0, 0)
+}
+
+func (rm *ReplicationManager) RunWithDelays(workers int, stopCh <-chan struct{}, interval time.Duration, jitter float64) {
 	defer utilruntime.HandleCrash()
 	glog.Infof("Starting RC Manager")
 	go rm.rcController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	go rm.podController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	for i := 0; i < workers; i++ {
 		go wait.Until(rm.worker, time.Second, stopCh)
+		time.Sleep(wait.Jitter(interval, jitter))
 	}
 	<-stopCh
 	glog.Infof("Shutting down RC Manager")

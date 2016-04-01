@@ -29,6 +29,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller/framework"
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/runtime"
+	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/watch"
 )
 
@@ -134,9 +135,14 @@ type ServiceAccountsController struct {
 
 // Runs controller loops and returns immediately
 func (e *ServiceAccountsController) Run() {
+	e.RunWithDelays(0, 0)
+}
+
+func (e *ServiceAccountsController) RunWithDelays(interval time.Duration, jitter float64) {
 	if e.stopChan == nil {
 		e.stopChan = make(chan struct{})
 		go e.serviceAccountController.Run(e.stopChan)
+		time.Sleep(wait.Jitter(interval, jitter))
 		go e.namespaceController.Run(e.stopChan)
 	}
 }

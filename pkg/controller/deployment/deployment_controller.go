@@ -166,12 +166,20 @@ func NewDeploymentController(client clientset.Interface, resyncPeriod controller
 
 // Run begins watching and syncing.
 func (dc *DeploymentController) Run(workers int, stopCh <-chan struct{}) {
+	dc.RunWithDelays(workers, stopCh, 0, 0)
+}
+
+func (dc *DeploymentController) RunWithDelays(workers int, stopCh <-chan struct{}, interval time.Duration, jitter float64) {
 	defer utilruntime.HandleCrash()
 	go dc.dController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	go dc.rsController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	go dc.podController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	for i := 0; i < workers; i++ {
 		go wait.Until(dc.worker, time.Second, stopCh)
+		time.Sleep(wait.Jitter(interval, jitter))
 	}
 	<-stopCh
 	glog.Infof("Shutting down deployment controller")

@@ -217,11 +217,18 @@ func NewNodeController(
 	return nc
 }
 
-// Run starts an asynchronous loop that monitors the status of cluster nodes.
 func (nc *NodeController) Run(period time.Duration) {
+	nc.RunWithDelays(period, 0, 0)
+}
+
+// Run starts an asynchronous loop that monitors the status of cluster nodes.
+func (nc *NodeController) RunWithDelays(period time.Duration, interval time.Duration, jitter float64) {
 	go nc.nodeController.Run(wait.NeverStop)
+	time.Sleep(wait.Jitter(interval, jitter))
 	go nc.podController.Run(wait.NeverStop)
+	time.Sleep(wait.Jitter(interval, jitter))
 	go nc.daemonSetController.Run(wait.NeverStop)
+	time.Sleep(wait.Jitter(interval, jitter))
 
 	// Incorporate the results of node status pushed from kubelet to master.
 	go wait.Until(func() {
@@ -229,6 +236,7 @@ func (nc *NodeController) Run(period time.Duration) {
 			glog.Errorf("Error monitoring node status: %v", err)
 		}
 	}, nc.nodeMonitorPeriod, wait.NeverStop)
+	time.Sleep(wait.Jitter(interval, jitter))
 
 	// Managing eviction of nodes:
 	// 1. when we delete pods off a node, if the node was not empty at the time we then
@@ -258,6 +266,7 @@ func (nc *NodeController) Run(period time.Duration) {
 			return true, 0
 		})
 	}, nodeEvictionPeriod, wait.NeverStop)
+	time.Sleep(wait.Jitter(interval, jitter))
 
 	// TODO: replace with a controller that ensures pods that are terminating complete
 	// in a particular time period

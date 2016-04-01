@@ -36,6 +36,7 @@ import (
 	"k8s.io/kubernetes/pkg/fields"
 	"k8s.io/kubernetes/pkg/types"
 	"k8s.io/kubernetes/pkg/util/runtime"
+	"k8s.io/kubernetes/pkg/util/wait"
 )
 
 const (
@@ -117,6 +118,10 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 // It's an error to call Run() more than once for a given ServiceController
 // object.
 func (s *ServiceController) Run(serviceSyncPeriod, nodeSyncPeriod time.Duration) error {
+	return s.RunWithDelays(serviceSyncPeriod, nodeSyncPeriod, 0, 0)
+}
+
+func (s *ServiceController) RunWithDelays(serviceSyncPeriod, nodeSyncPeriod time.Duration, interval time.Duration, jitter float64) error {
 	if err := s.init(); err != nil {
 		return err
 	}
@@ -146,10 +151,12 @@ func (s *ServiceController) Run(serviceSyncPeriod, nodeSyncPeriod time.Duration)
 	cache.NewReflector(lw, &api.Service{}, serviceQueue, serviceSyncPeriod).Run()
 	for i := 0; i < workerGoroutines; i++ {
 		go s.watchServices(serviceQueue)
+		time.Sleep(wait.Jitter(interval, jitter))
 	}
 
 	nodeLW := cache.NewListWatchFromClient(s.kubeClient.(*clientset.Clientset).CoreClient, "nodes", api.NamespaceAll, fields.Everything())
 	cache.NewReflector(nodeLW, &api.Node{}, s.nodeLister.Store, 0).Run()
+	time.Sleep(wait.Jitter(interval, jitter))
 	go s.nodeSyncLoop(nodeSyncPeriod)
 	return nil
 }

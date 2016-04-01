@@ -178,15 +178,22 @@ func (rq *ResourceQuotaController) worker() {
 
 // Run begins quota controller using the specified number of workers
 func (rq *ResourceQuotaController) Run(workers int, stopCh <-chan struct{}) {
+	rq.RunWithDelays(workers, stopCh, 0, 0)
+}
+
+func (rq *ResourceQuotaController) RunWithDelays(workers int, stopCh <-chan struct{}, interval time.Duration, jitter float64) {
 	defer utilruntime.HandleCrash()
 	go rq.rqController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	// the controllers that replenish other resources to respond rapidly to state changes
 	for _, replenishmentController := range rq.replenishmentControllers {
 		go replenishmentController.Run(stopCh)
+		time.Sleep(wait.Jitter(interval, jitter))
 	}
 	// the workers that chug through the quota calculation backlog
 	for i := 0; i < workers; i++ {
 		go wait.Until(rq.worker, time.Second, stopCh)
+		time.Sleep(wait.Jitter(interval, jitter))
 	}
 	// the timer for how often we do a full recalculation across all quotas
 	go wait.Until(func() { rq.enqueueAll() }, rq.resyncPeriod(), stopCh)

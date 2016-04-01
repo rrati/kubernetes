@@ -205,11 +205,18 @@ func (rsc *ReplicaSetController) SetEventRecorder(recorder record.EventRecorder)
 
 // Run begins watching and syncing.
 func (rsc *ReplicaSetController) Run(workers int, stopCh <-chan struct{}) {
+	rsc.RunWithDelays(workers, stopCh, 0, 0)
+}
+
+func (rsc *ReplicaSetController) RunWithDelays(workers int, stopCh <-chan struct{}, interval time.Duration, jitter float64) {
 	defer utilruntime.HandleCrash()
 	go rsc.rsController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	go rsc.podController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	for i := 0; i < workers; i++ {
 		go wait.Until(rsc.worker, time.Second, stopCh)
+		time.Sleep(wait.Jitter(interval, jitter))
 	}
 	<-stopCh
 	glog.Infof("Shutting down ReplicaSet Controller")

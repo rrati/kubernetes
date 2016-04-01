@@ -164,10 +164,16 @@ func (nm *NamespaceController) syncNamespaceFromKey(key string) (err error) {
 
 // Run starts observing the system with the specified number of workers.
 func (nm *NamespaceController) Run(workers int, stopCh <-chan struct{}) {
+	nm.RunWithDelays(workers, stopCh, 0, 0)
+}
+
+func (nm *NamespaceController) RunWithDelays(workers int, stopCh <-chan struct{}, interval time.Duration, jitter float64) {
 	defer utilruntime.HandleCrash()
 	go nm.controller.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	for i := 0; i < workers; i++ {
 		go wait.Until(nm.worker, time.Second, stopCh)
+		time.Sleep(wait.Jitter(interval, jitter))
 	}
 	<-stopCh
 	glog.Infof("Shutting down NamespaceController")

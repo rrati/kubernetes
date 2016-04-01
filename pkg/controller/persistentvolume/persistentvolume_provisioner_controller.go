@@ -31,6 +31,7 @@ import (
 	"k8s.io/kubernetes/pkg/types"
 	"k8s.io/kubernetes/pkg/util/io"
 	"k8s.io/kubernetes/pkg/util/mount"
+	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/volume"
 	"k8s.io/kubernetes/pkg/watch"
 
@@ -329,6 +330,10 @@ func provisionVolume(pv *api.PersistentVolume, controller *PersistentVolumeProvi
 
 // Run starts all of this controller's control loops
 func (controller *PersistentVolumeProvisionerController) Run() {
+	controller.RunWithDelays(0, 0)
+}
+
+func (controller *PersistentVolumeProvisionerController) RunWithDelays(interval time.Duration, jitter float64) {
 	glog.V(5).Infof("Starting PersistentVolumeProvisionerController\n")
 	if controller.stopChannels == nil {
 		controller.stopChannels = make(map[string]chan struct{})
@@ -337,6 +342,7 @@ func (controller *PersistentVolumeProvisionerController) Run() {
 	if _, exists := controller.stopChannels[volumesStopChannel]; !exists {
 		controller.stopChannels[volumesStopChannel] = make(chan struct{})
 		go controller.volumeController.Run(controller.stopChannels[volumesStopChannel])
+		time.Sleep(wait.Jitter(interval, jitter))
 	}
 
 	if _, exists := controller.stopChannels[claimsStopChannel]; !exists {

@@ -508,6 +508,14 @@ type KubeControllerManagerConfiguration struct {
 	LeaderElection LeaderElectionConfiguration `json:"leaderElection"`
 	// vloumeConfiguration holds configuration for volume related features.
 	VolumeConfiguration VolumeConfiguration `json:"volumeConfiguration"`
+	// How long to wait between starting controller managers
+	ControllerManagerStartInterval unversioned.Duration`json:"controllerManagerStartInterval"`
+	// Jitter for starting controller managers
+	ControllerManagerStartJitter float64 `json:"controllerManagerStartJitter"`
+	// How long to wait between starting controllers in a controller manager
+	ControllerStartInterval unversioned.Duration `json:"controllerStartInterval"`
+	// Jitter for starting controllers
+	ControllerStartJitter float64 `json:"controllerStartJitter"`
 }
 
 // VolumeConfiguration contains *all* enumerated flags meant to configure all volume

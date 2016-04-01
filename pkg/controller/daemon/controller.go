@@ -205,13 +205,21 @@ func NewDaemonSetsController(kubeClient clientset.Interface, resyncPeriod contro
 
 // Run begins watching and syncing daemon sets.
 func (dsc *DaemonSetsController) Run(workers int, stopCh <-chan struct{}) {
+	dsc.RunWithDelays(workers, stopCh, 0, 0)
+}
+
+func (dsc *DaemonSetsController) RunWithDelays(workers int, stopCh <-chan struct{}, interval time.Duration, jitter float64) {
 	defer utilruntime.HandleCrash()
 	glog.Infof("Starting Daemon Sets controller manager")
 	go dsc.dsController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	go dsc.podController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	go dsc.nodeController.Run(stopCh)
+	time.Sleep(wait.Jitter(interval, jitter))
 	for i := 0; i < workers; i++ {
 		go wait.Until(dsc.worker, time.Second, stopCh)
+		time.Sleep(wait.Jitter(interval, jitter))
 	}
 	<-stopCh
 	glog.Infof("Shutting down Daemon Set Controller")

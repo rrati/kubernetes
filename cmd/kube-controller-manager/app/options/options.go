@@ -146,5 +146,9 @@ func (s *CMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&s.RootCAFile, "root-ca-file", s.RootCAFile, "If set, this root certificate authority will be included in service account's token secret. This must be a valid PEM-encoded CA bundle.")
 	fs.Float32Var(&s.KubeAPIQPS, "kube-api-qps", s.KubeAPIQPS, "QPS to use while talking with kubernetes apiserver")
 	fs.IntVar(&s.KubeAPIBurst, "kube-api-burst", s.KubeAPIBurst, "Burst to use while talking with kubernetes apiserver")
+	fs.DurationVar(&s.ControllerManagerStartInterval.Duration, "controller-manager-start-interval", 0, "Interval between starting controller managers.")
+	fs.Float64Var(&s.ControllerManagerStartJitter, "controller-manager-start-jitter", 0, "Jitter to use when starting controller managers.")
+	fs.DurationVar(&s.ControllerStartInterval.Duration, "controller-start-interval", 0, "Interval between starting controllers.")
+	fs.Float64Var(&s.ControllerStartJitter, "controller-start-jitter", 0, "Jitter to use when starting controllers.")
 	leaderelection.BindFlags(&s.LeaderElection, fs)
 }
