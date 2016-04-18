@@ -113,15 +113,18 @@ func (c *threadSafeMap) ListKeys() []string {
 }
 
 func (c *threadSafeMap) Replace(items map[string]interface{}, resourceVersion string) {
+fmt.Println("In Replace")
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.items = items
 
 	// rebuild any index
 	c.indices = Indices{}
+fmt.Println("Looping over items and updating")
 	for key, item := range c.items {
 		c.updateIndices(nil, item, key)
 	}
+fmt.Println("Finished looping")
 }
 
 // Index returns a list of items that match on the index function
@@ -192,8 +195,10 @@ func (c *threadSafeMap) ListIndexFuncValues(indexName string) []string {
 func (c *threadSafeMap) updateIndices(oldObj interface{}, newObj interface{}, key string) error {
 	// if we got an old object, we need to remove it before we add it again
 	if oldObj != nil {
+fmt.Println("Deleting index")
 		c.deleteFromIndices(oldObj, key)
 	}
+fmt.Printf("indexers: %v\n", c.indexers)
 	for name, indexFunc := range c.indexers {
 		indexValues, err := indexFunc(newObj)
 		if err != nil {
@@ -205,6 +210,7 @@ func (c *threadSafeMap) updateIndices(oldObj interface{}, newObj interface{}, ke
 			c.indices[name] = index
 		}
 
+fmt.Println("Looping over indexvalue")
 		for _, indexValue := range indexValues {
 			set := index[indexValue]
 			if set == nil {
@@ -213,7 +219,9 @@ func (c *threadSafeMap) updateIndices(oldObj interface{}, newObj interface{}, ke
 			}
 			set.Insert(key)
 		}
+fmt.Println("Done looping")
 	}
+fmt.Println("Done updating")
 	return nil
 }
 

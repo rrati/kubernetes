@@ -16,6 +16,10 @@ limitations under the License.
 
 package cache
 
+import (
+	"fmt"
+)
+
 // UndeltaStore listens to incremental updates and sends complete state on every change.
 // It implements the Store interface so that it can receive a stream of mirrored objects
 // from Reflector.  Whenever it receives any complete (Store.Replace) or incremental change
@@ -51,10 +55,13 @@ func (u *UndeltaStore) Add(obj interface{}) error {
 }
 
 func (u *UndeltaStore) Update(obj interface{}) error {
+fmt.Println("In UndeltaStore::Update")
 	if err := u.Store.Update(obj); err != nil {
 		return err
 	}
+fmt.Println("Store::Update complete")
 	u.PushFunc(u.Store.List())
+fmt.Println("u::PushFunc complete")
 	return nil
 }
 
