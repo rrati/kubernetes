@@ -77,6 +77,7 @@ type Reflector struct {
 	lastSyncResourceVersion string
 	// lastSyncResourceVersionMutex guards read/write access to lastSyncResourceVersion
 	lastSyncResourceVersionMutex sync.RWMutex
+	initialized bool
 }
 
 var (
@@ -375,13 +376,16 @@ func (r *Reflector) Watch(stopCh <-chan struct{}) error {
 
 // ListAndWatch first calls List to list all objects, then calls Watch.
 func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
+/*
 	var once sync.Once
 	once.Do(func() { r.List() })
-/*
-	if err := r.List(); err != nil {
-		return err
-	}
 */
+	if !r.initialized {
+		if err := r.List(); err != nil {
+			return err
+		}
+		r.initialized = true
+	}
 	return r.Watch(stopCh)
 }
 
@@ -479,7 +483,7 @@ func (r *Reflector) LastSyncResourceVersion() string {
 
 func (r *Reflector) setLastSyncResourceVersion(v string) {
 	r.lastSyncResourceVersionMutex.Lock()
-	defer r.lastSyncResourceVersionMutex.Unlock()
 //fmt.Printf("Setting lastSyncResourceVersion to '%s'\n", v)
+	defer r.lastSyncResourceVersionMutex.Unlock()
 	r.lastSyncResourceVersion = v
 }

@@ -21,6 +21,7 @@ import (
 	"math/rand"
 	"strconv"
 	"sync"
+//	"fmt"
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/meta"
