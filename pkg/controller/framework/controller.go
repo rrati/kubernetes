@@ -19,6 +19,7 @@ package framework
 import (
 	"sync"
 	"time"
+//	"fmt"
 
 	"k8s.io/kubernetes/pkg/client/cache"
 	"k8s.io/kubernetes/pkg/runtime"
@@ -230,18 +231,22 @@ func NewInformer(
 			for _, d := range obj.(cache.Deltas) {
 				switch d.Type {
 				case cache.Sync, cache.Added, cache.Updated:
+//fmt.Println("Informer Update/Add/Sync")
 					if old, exists, err := clientState.Get(d.Object); err == nil && exists {
 						if err := clientState.Update(d.Object); err != nil {
+//fmt.Printf("Informer Update/Add/Sync clientState update failure: %v\n", err)
 							return err
 						}
 						h.OnUpdate(old, d.Object)
 					} else {
 						if err := clientState.Add(d.Object); err != nil {
+//fmt.Printf("Informer Update/Add/Sync clientState delete failure: %v\n", err)
 							return err
 						}
 						h.OnAdd(d.Object)
 					}
 				case cache.Deleted:
+//fmt.Println("Informer Delete")
 					if err := clientState.Delete(d.Object); err != nil {
 						return err
 					}

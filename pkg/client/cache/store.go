@@ -197,7 +197,6 @@ func (c *cache) GetByKey(key string) (item interface{}, exists bool, err error) 
 // after calling this function.
 func (c *cache) Replace(list []interface{}, resourceVersion string) error {
 	items := map[string]interface{}{}
-fmt.Println("Looping over list")
 	for _, item := range list {
 		key, err := c.keyFunc(item)
 		if err != nil {
@@ -205,9 +204,7 @@ fmt.Println("Looping over list")
 		}
 		items[key] = item
 	}
-fmt.Println("Replacing in cacheStorage")
 	c.cacheStorage.Replace(items, resourceVersion)
-fmt.Println("Finished replacing in cacheStorage")
 	return nil
 }
 

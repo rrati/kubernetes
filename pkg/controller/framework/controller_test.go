@@ -364,6 +364,7 @@ func TestUpdate(t *testing.T) {
 		time.Millisecond*1,
 		framework.ResourceEventHandlerFuncs{
 			UpdateFunc: func(oldObj, newObj interface{}) {
+//fmt.Println("Controller UpdateFunc Called")
 				o, n := oldObj.(*api.Pod), newObj.(*api.Pod)
 				from, to := o.Labels["check"], n.Labels["check"]
 				if !allowedTransitions[pair{from, to}] {
@@ -374,6 +375,7 @@ func TestUpdate(t *testing.T) {
 				}
 			},
 			DeleteFunc: func(obj interface{}) {
+//fmt.Println("Controller DeleteFunc Called")
 				testDoneWG.Done()
 			},
 		},

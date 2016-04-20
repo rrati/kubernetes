@@ -96,6 +96,7 @@ func (f *FakeControllerSource) key(accessor meta.Object) nnu {
 // Change records the given event (setting the object's resource version) and
 // sends a watch event with the specified probability.
 func (f *FakeControllerSource) Change(e watch.Event, watchProbability float64) {
+//fmt.Println("FakeControllerSource:Change")
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
@@ -110,18 +111,23 @@ func (f *FakeControllerSource) Change(e watch.Event, watchProbability float64) {
 	key := f.key(accessor)
 	switch e.Type {
 	case watch.Added, watch.Modified:
+//fmt.Println("FakeControllerSource watch Add/Modified")
 		f.items[key] = e.Object
 	case watch.Deleted:
+//fmt.Println("FakeControllerSource watch Deleted")
 		delete(f.items, key)
 	}
 
 	if rand.Float64() < watchProbability {
+//fmt.Println("Watch Event Sent")
 		f.broadcaster.Action(e.Type, e.Object)
 	}
+//fmt.Println("FakeControllerSource:Change Return")
 }
 
 // List returns a list object, with its resource version set.
 func (f *FakeControllerSource) List(options api.ListOptions) (runtime.Object, error) {
+//fmt.Println("FakeControllerSource:List")
 	f.lock.RLock()
 	defer f.lock.RUnlock()
 	list := make([]runtime.Object, 0, len(f.items))
@@ -146,12 +152,14 @@ func (f *FakeControllerSource) List(options api.ListOptions) (runtime.Object, er
 	}
 	resourceVersion := len(f.changes)
 	objMeta.ResourceVersion = strconv.Itoa(resourceVersion)
+//fmt.Println("FakeControllerSource:List Return")
 	return listObj, nil
 }
 
 // Watch returns a watch, which will be pre-populated with all changes
 // after resourceVersion.
 func (f *FakeControllerSource) Watch(options api.ListOptions) (watch.Interface, error) {
+//fmt.Println("FakeControllerSource:Watch")
 	f.lock.RLock()
 	defer f.lock.RUnlock()
 	rc, err := strconv.Atoi(options.ResourceVersion)
@@ -176,6 +184,7 @@ func (f *FakeControllerSource) Watch(options api.ListOptions) (watch.Interface, 
 	} else if rc > len(f.changes) {
 		return nil, errors.New("resource version in the future not supported by this fake")
 	}
+//fmt.Println("FakeControllerSource:Watch Return")
 	return f.broadcaster.Watch(), nil
 }
 

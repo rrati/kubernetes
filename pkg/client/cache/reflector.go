@@ -77,10 +77,6 @@ type Reflector struct {
 	lastSyncResourceVersion string
 	// lastSyncResourceVersionMutex guards read/write access to lastSyncResourceVersion
 	lastSyncResourceVersionMutex sync.RWMutex
-	// listRunning tells if a list operation is running
-	listRunning bool
-	// listMutex guards read/write access to listRunning
-	listMutex sync.RWMutex
 }
 
 var (
@@ -204,18 +200,14 @@ func extractStackCreator() (string, int, bool) {
 // Run starts a goroutine and returns immediately.
 func (r *Reflector) Run() {
 	glog.V(3).Infof("Starting reflector %v (%s) from %s", r.expectedType, r.resyncPeriod, r.name)
-	r.startList()
-	go r.List()
-	go wait.Until(func() { r.Watch(wait.NeverStop) }, r.period, wait.NeverStop)
+	go wait.Until(func() { r.ListAndWatch(wait.NeverStop) }, r.period, wait.NeverStop)
 }
 
 // RunUntil starts a watch and handles watch events. Will restart the watch if it is closed.
 // RunUntil starts a goroutine and returns immediately. It will exit when stopCh is closed.
 func (r *Reflector) RunUntil(stopCh <-chan struct{}) {
 	glog.V(3).Infof("Starting reflector %v (%s) from %s", r.expectedType, r.resyncPeriod, r.name)
-	r.startList()
-	go r.List()
-	go wait.Until(func() { r.Watch(stopCh) }, r.period, stopCh)
+	go wait.Until(func() { r.ListAndWatch(stopCh) }, r.period, stopCh)
 }
 
 var (
@@ -277,9 +269,8 @@ func (r *Reflector) canForceResyncNow() bool {
 
 // List all items and get the resource version at the moment of call
 func (r *Reflector) List() error {
-	r.startList()
 	glog.V(3).Infof("Listing %v from %s", r.expectedType, r.name)
-fmt.Printf("Listing %v from %s\n", r.expectedType, r.name)
+//fmt.Printf("Listing %v from %s\n", r.expectedType, r.name)
 	var resourceVersion string
 
 	// Explicitly set "0" as resource version - it's fine for the List()
@@ -287,50 +278,45 @@ fmt.Printf("Listing %v from %s\n", r.expectedType, r.name)
 	// etcd contents. Reflector framework will catch up via Watch() eventually.
 	options := api.ListOptions{ResourceVersion: "0"}
 	list, err := r.listerWatcher.List(options)
-fmt.Println("Listing complete")
+//fmt.Println("Listing complete")
 	if err != nil {
-fmt.Printf("%s: Failed to list %v: %v\n", r.name, r.expectedType, err)
+//fmt.Printf("%s: Failed to list %v: %v\n", r.name, r.expectedType, err)
 		return fmt.Errorf("%s: Failed to list %v: %v", r.name, r.expectedType, err)
 	}
 	metaInterface, err := meta.Accessor(list)
 	if err != nil {
-fmt.Printf("%s: Unable to understand list result %#v\n", r.name, list)
+//fmt.Printf("%s: Unable to understand list result %#v\n", r.name, list)
 		return fmt.Errorf("%s: Unable to understand list result %#v", r.name, list)
 	}
 	resourceVersion = metaInterface.GetResourceVersion()
-fmt.Printf("Got resourceversion '%s'\n", resourceVersion)
+//fmt.Printf("Got resourceversion '%s'\n", resourceVersion)
 	items, err := meta.ExtractList(list)
 	if err != nil {
-fmt.Printf("%s: Unable to understand list result %#v (%v)\n", r.name, list, err)
+//fmt.Printf("%s: Unable to understand list result %#v (%v)\n", r.name, list, err)
 		return fmt.Errorf("%s: Unable to understand list result %#v (%v)", r.name, list, err)
 	}
-fmt.Printf("Extracted list %v\n", items)
+//fmt.Printf("Extracted list %v\n", items)
 	if err := r.syncWith(items, resourceVersion); err != nil {
-fmt.Printf("%s: Unable to sync list result: %v\n", r.name, err)
+//fmt.Printf("%s: Unable to sync list result: %v\n", r.name, err)
 		return fmt.Errorf("%s: Unable to sync list result: %v", r.name, err)
 	}
-fmt.Println("Finished syncing")
+//fmt.Println("Finished syncing")
 	r.setLastSyncResourceVersion(resourceVersion)
-	r.stopList()
 
 	return nil
 }
 
 // Watch using the resource version from the last list/sync
 func (r *Reflector) Watch(stopCh <-chan struct{}) error {
-	for r.isListRunning() == true {
-		time.Sleep(1 * time.Millisecond)
-	}
-	
 	glog.V(3).Infof("Watching %v from %s", r.expectedType, r.name)
-fmt.Printf("Watching %v from %s\n", r.expectedType, r.name)
+//fmt.Printf("Watching %v from %s\n", r.expectedType, r.name)
 	var resourceVersion string
 	resyncCh, cleanup := r.resyncChan()
 	defer cleanup()
 
 	resourceVersion = r.LastSyncResourceVersion()
 	for {
-fmt.Println("Starting Watch")
+//fmt.Println("Starting Watch")
 		options := api.ListOptions{
 			ResourceVersion: resourceVersion,
 			// We want to avoid situations when resyncing is breaking the TCP connection
@@ -338,17 +324,17 @@ fmt.Println("Starting Watch")
 			TimeoutSeconds: r.timeoutForWatch(),
 		}
 		w, err := r.listerWatcher.Watch(options)
-fmt.Println("Watch exited")
+//fmt.Println("Watch exited")
 		if err != nil {
 			switch err {
 			case io.EOF:
-fmt.Println("Normal watch close")
+//fmt.Println("Normal watch close")
 				// watch closed normally
 			case io.ErrUnexpectedEOF:
-fmt.Printf("%s: Watch for %v closed with unexpected EOF: %v\n", r.name, r.expectedType, err)
+//fmt.Printf("%s: Watch for %v closed with unexpected EOF: %v\n", r.name, r.expectedType, err)
 				glog.V(1).Infof("%s: Watch for %v closed with unexpected EOF: %v", r.name, r.expectedType, err)
 			default:
-fmt.Printf("%s: Failed to watch %v: %v", r.name, r.expectedType, err)
+//fmt.Printf("%s: Failed to watch %v: %v", r.name, r.expectedType, err)
 				utilruntime.HandleError(fmt.Errorf("%s: Failed to watch %v: %v", r.name, r.expectedType, err))
 			}
 			// If this is "connection refused" error, it means that most likely apiserver is not responsive.
@@ -363,40 +349,40 @@ fmt.Printf("%s: Failed to watch %v: %v", r.name, r.expectedType, err)
 					}
 				}
 			}
-fmt.Println("connection refused error")
+//fmt.Println("connection refused error")
 			return nil
 		}
-fmt.Println("Past err check")
+//fmt.Println("Past err check")
 		if err := r.watchHandler(w, &resourceVersion, resyncCh, stopCh); err != nil {
 			if err != errorResyncRequested && err != errorStopRequested {
 				glog.Warningf("%s: watch of %v ended with: %v", r.name, r.expectedType, err)
-fmt.Printf("%s: watch of %v ended with: %v\n", r.name, r.expectedType, err)
+//fmt.Printf("%s: watch of %v ended with: %v\n", r.name, r.expectedType, err)
 				return r.List()
-//				go r.List()
 			}
-fmt.Printf("watchHandler of %v exited with: %v\n", r.expectedType, err)
+//fmt.Printf("watchHandler of %v exited with: %v\n", r.expectedType, err)
 			return nil
 		}
-fmt.Println("watchHandler exited")
+//fmt.Println("watchHandler exited")
 		if r.canForceResyncNow() {
 			glog.V(4).Infof("%s: next resync planned for %#v, forcing now", r.name, r.nextResync)
-fmt.Printf("%s: next resync planned for %#v, forcing now\n", r.name, r.nextResync)
+//fmt.Printf("%s: next resync planned for %#v, forcing now\n", r.name, r.nextResync)
 			return nil
 		}
 	}
-fmt.Println("Exiting Watch")
-return nil
+//fmt.Println("Exiting Watch")
+//return nil
 }
 
 // ListAndWatch first calls List to list all objects, then calls Watch.
 func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
+	var once sync.Once
+	once.Do(func() { r.List() })
+/*
 	if err := r.List(); err != nil {
 		return err
 	}
-	if err := r.Watch(stopCh); err != nil {
-		return err
-	}
-	return nil
+*/
+	return r.Watch(stopCh)
 }
 
 // syncWith replaces the store's items with the given list.
@@ -405,13 +391,12 @@ func (r *Reflector) syncWith(items []runtime.Object, resourceVersion string) err
 	for _, item := range items {
 		found = append(found, item)
 	}
-fmt.Println("Replacing in Store")
+//fmt.Println("Replacing in Store")
 	return r.store.Replace(found, resourceVersion)
 }
 
 // watchHandler watches w and keeps *resourceVersion up to date.
 func (r *Reflector) watchHandler(w watch.Interface, resourceVersion *string, resyncCh <-chan time.Time, stopCh <-chan struct{}) error {
-fmt.Println("In watchHandler")
 	start := time.Now()
 	eventCount := 0
 
@@ -423,44 +408,47 @@ loop:
 	for {
 		select {
 		case <-stopCh:
+//fmt.Println("Stop Channel fired")
 			return errorStopRequested
 		case <-resyncCh:
+//fmt.Println("Resync Channel fired")
 			return errorResyncRequested
 		case event, ok := <-w.ResultChan():
+//fmt.Println("Watch Event Received")
 			if !ok {
 				break loop
 			}
 			if event.Type == watch.Error {
-fmt.Printf("Error from object: %v\n", apierrs.FromObject(event.Object))
+//fmt.Printf("Error from object: %v\n", apierrs.FromObject(event.Object))
 				return apierrs.FromObject(event.Object)
 			}
 			if e, a := r.expectedType, reflect.TypeOf(event.Object); e != nil && e != a {
-fmt.Printf("%s: expected type %v, but watch event object had type %v\n", r.name, e, a)
+//fmt.Printf("%s: expected type %v, but watch event object had type %v\n", r.name, e, a)
 				utilruntime.HandleError(fmt.Errorf("%s: expected type %v, but watch event object had type %v", r.name, e, a))
 				continue
 			}
 			meta, err := meta.Accessor(event.Object)
 			if err != nil {
-fmt.Printf("%s: unable to understand watch event %#v", r.name, event)
+//fmt.Printf("%s: unable to understand watch event %#v", r.name, event)
 				utilruntime.HandleError(fmt.Errorf("%s: unable to understand watch event %#v", r.name, event))
 				continue
 			}
 			newResourceVersion := meta.GetResourceVersion()
 			switch event.Type {
 			case watch.Added:
-fmt.Println("Add object")
+//fmt.Println("Add object")
 				r.store.Add(event.Object)
 			case watch.Modified:
-fmt.Println("Modify object")
+//fmt.Println("Modify object")
 				r.store.Update(event.Object)
 			case watch.Deleted:
-fmt.Println("Delete object")
+//fmt.Println("Delete object")
 				// TODO: Will any consumers need access to the "last known
 				// state", which is passed in event.Object? If so, may need
 				// to change this.
 				r.store.Delete(event.Object)
 			default:
-fmt.Printf("%s: unable to understand watch event %#v\n", r.name, event)
+//fmt.Printf("%s: unable to understand watch event %#v\n", r.name, event)
 				utilruntime.HandleError(fmt.Errorf("%s: unable to understand watch event %#v", r.name, event))
 			}
 			*resourceVersion = newResourceVersion
@@ -472,11 +460,11 @@ fmt.Printf("%s: unable to understand watch event %#v\n", r.name, event)
 	watchDuration := time.Now().Sub(start)
 	if watchDuration < 1*time.Second && eventCount == 0 {
 		glog.V(4).Infof("%s: Unexpected watch close - watch lasted less than a second and no items received", r.name)
-fmt.Printf("%s: Unexpected watch close - watch lasted less than a second and no items received\n", r.name)
+//fmt.Printf("%s: Unexpected watch close - watch lasted less than a second and no items received\n", r.name)
 		return errors.New("very short watch")
 	}
 	glog.V(4).Infof("%s: Watch close - %v total %v items received", r.name, r.expectedType, eventCount)
-fmt.Printf("%s: Watch close - %v total %v items received\n", r.name, r.expectedType, eventCount)
+//fmt.Printf("%s: Watch close - %v total %v items received\n", r.name, r.expectedType, eventCount)
 	return nil
 }
 
@@ -485,32 +473,13 @@ fmt.Printf("%s: Watch close - %v total %v items received\n", r.name, r.expectedT
 func (r *Reflector) LastSyncResourceVersion() string {
 	r.lastSyncResourceVersionMutex.RLock()
 	defer r.lastSyncResourceVersionMutex.RUnlock()
-fmt.Printf("Returning lastSyncResourceVersion of '%s'\n", r.lastSyncResourceVersion)
+//fmt.Printf("Returning lastSyncResourceVersion of '%s'\n", r.lastSyncResourceVersion)
 	return r.lastSyncResourceVersion
 }
 
 func (r *Reflector) setLastSyncResourceVersion(v string) {
-fmt.Println("In set")
 	r.lastSyncResourceVersionMutex.Lock()
 	defer r.lastSyncResourceVersionMutex.Unlock()
-fmt.Printf("Setting lastSyncResourceVersion to '%s'\n", v)
+//fmt.Printf("Setting lastSyncResourceVersion to '%s'\n", v)
 	r.lastSyncResourceVersion = v
-}
-
-func (r *Reflector) startList() {
-	r.listMutex.Lock()
-	defer r.listMutex.Unlock()
-	r.listRunning = true
-}
-
-func (r *Reflector) stopList() {
-	r.listMutex.Lock()
-	defer r.listMutex.Unlock()
-	r.listRunning = false
-}
-
-func (r *Reflector) isListRunning() bool {
-	r.listMutex.Lock()
-	defer r.listMutex.Unlock()
-	return r.listRunning
 }
