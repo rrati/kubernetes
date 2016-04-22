@@ -191,19 +191,6 @@ func TestReflectorWatchHandler(t *testing.T) {
 	}
 }
 
-func TestReflectorWatchHandlerTimeout(t *testing.T) {
-	s := NewStore(MetaNamespaceKeyFunc)
-	g := NewReflector(&testLW{}, &api.Pod{}, s, 0)
-	fw := watch.NewFake()
-	var resumeRV string
-	exit := make(chan time.Time, 1)
-	exit <- time.Now()
-	err := g.watchHandler(fw, &resumeRV, exit, wait.NeverStop)
-	if err != errorResyncRequested {
-		t.Errorf("expected timeout error, but got %q", err)
-	}
-}
-
 func TestReflectorStopWatch(t *testing.T) {
 	s := NewStore(MetaNamespaceKeyFunc)
 	g := NewReflector(&testLW{}, &api.Pod{}, s, 0)

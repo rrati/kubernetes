@@ -366,7 +366,7 @@ loop:
 		case <-stopCh:
 			return errorStopRequested
 		case <-resyncCh:
-			return errorResyncRequested
+			r.store.Replace(r.store.List(), r.LastSyncResourceVersion())
 		case event, ok := <-w.ResultChan():
 			if !ok {
 				break loop
