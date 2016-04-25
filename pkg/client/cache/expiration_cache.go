@@ -191,6 +191,17 @@ func (c *ExpirationCache) Replace(list []interface{}, resourceVersion string) er
 	return nil
 }
 
+// Resync goes over all items in the queue and tages them for processing
+func (c *ExpirationCache) Resync() error {
+	items := c.cacheStorage.List()
+	for _, item := range items {
+		if err := c.Update(item); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // NewTTLStore creates and returns a ExpirationCache with a TTLPolicy
 func NewTTLStore(keyFunc KeyFunc, ttl time.Duration) Store {
 	return &ExpirationCache{

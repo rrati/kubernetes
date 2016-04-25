@@ -44,6 +44,7 @@ type Store interface {
 	// given list. Store takes ownership of the list, you should not reference
 	// it after calling this function.
 	Replace([]interface{}, string) error
+	Resync() error
 }
 
 // KeyFunc knows how to make a key from an object. Implementations should be deterministic.
@@ -205,6 +206,17 @@ func (c *cache) Replace(list []interface{}, resourceVersion string) error {
 		items[key] = item
 	}
 	c.cacheStorage.Replace(items, resourceVersion)
+	return nil
+}
+
+// Resync causes a sync indication for all items
+func(c *cache) Resync() error {
+	items := c.cacheStorage.List()
+	for _, item := range items {
+		if err := c.Update(item); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

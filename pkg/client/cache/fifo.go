@@ -241,6 +241,18 @@ func (f *FIFO) Replace(list []interface{}, resourceVersion string) error {
 	return nil
 }
 
+// Resync goes over all items in the queue and tages them for processing
+func (f *FIFO) Resync() error {
+	f.lock.RLock()
+	defer f.lock.RUnlock()
+	for _, item := range f.items {
+		if err := f.Update(item); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // NewFIFO returns a Store which can be used to queue up items to
 // process.
 func NewFIFO(keyFunc KeyFunc) *FIFO {

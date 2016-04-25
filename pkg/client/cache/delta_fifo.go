@@ -452,6 +452,18 @@ func (f *DeltaFIFO) Replace(list []interface{}, resourceVersion string) error {
 	return nil
 }
 
+// Resync will sent a sync event for each item
+func (f *DeltaFIFO) Resync() error {
+	f.lock.RLock()
+	defer f.lock.RUnlock()
+	for _, item := range f.items {
+		if err := f.queueActionLocked(Sync, item); err != nil {
+			return fmt.Errorf("couldn't sync object: %v", err)
+		}
+	}
+	return nil
+}
+
 // A KeyListerGetter is anything that knows how to list its keys and look up by key.
 type KeyListerGetter interface {
 	KeyLister
