@@ -272,6 +272,7 @@ func (r *Reflector) canForceResyncNow() bool {
 // It returns error if ListAndWatch didn't even try to initialize watch.
 func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
 	glog.V(3).Infof("Listing and watching %v from %s", r.expectedType, r.name)
+//fmt.Printf("Listing and watching %v from %s\n", r.expectedType, r.name)
 	var resourceVersion string
 	resyncCh, cleanup := r.resyncChan()
 	defer cleanup()
@@ -330,13 +331,17 @@ func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
 			return nil
 		}
 		if err := r.watchHandler(w, &resourceVersion, resyncCh, stopCh); err != nil {
+//fmt.Printf("watchHandler exited with error: %v\n", err)
 			if err != errorResyncRequested && err != errorStopRequested {
 				glog.Warningf("%s: watch of %v ended with: %v", r.name, r.expectedType, err)
 			}
-			return nil
+			if err != errorResyncRequested {
+				return nil
+			}
 		}
 		if r.canForceResyncNow() {
 			glog.V(4).Infof("%s: next resync planned for %#v, forcing now", r.name, r.nextResync)
+//fmt.Printf("%s: next resync planned for %#v, forcing now\n", r.name, r.nextResync)
 			if err := r.store.Resync(); err != nil {
 				return err
 			}
@@ -371,9 +376,8 @@ loop:
 		case <-stopCh:
 			return errorStopRequested
 		case <-resyncCh:
-			if err := r.store.Resync(); err != nil {
-				return err
-			}
+//fmt.Println("watchHandler resync channel fired")
+			return errorResyncRequested
 		case event, ok := <-w.ResultChan():
 			if !ok {
 				break loop
@@ -393,10 +397,13 @@ loop:
 			newResourceVersion := meta.GetResourceVersion()
 			switch event.Type {
 			case watch.Added:
+//fmt.Println("watchHandler watch.Added received")
 				r.store.Add(event.Object)
 			case watch.Modified:
+//fmt.Println("watchHandler watch.Modified received")
 				r.store.Update(event.Object)
 			case watch.Deleted:
+//fmt.Println("watchHandler watch.Deleted received")
 				// TODO: Will any consumers need access to the "last known
 				// state", which is passed in event.Object? If so, may need
 				// to change this.

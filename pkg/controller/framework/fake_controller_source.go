@@ -21,6 +21,7 @@ import (
 	"math/rand"
 	"strconv"
 	"sync"
+//"fmt"
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/meta"
@@ -116,6 +117,7 @@ func (f *FakeControllerSource) Change(e watch.Event, watchProbability float64) {
 	}
 
 	if rand.Float64() < watchProbability {
+//fmt.Printf("Watch Event Sent: %v, %v\n", e.Type, e.Object)
 		f.broadcaster.Action(e.Type, e.Object)
 	}
 }

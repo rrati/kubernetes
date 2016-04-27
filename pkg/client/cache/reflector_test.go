@@ -32,14 +32,14 @@ import (
 
 type testLW struct {
 	ListFunc  func() (runtime.Object, error)
-	WatchFunc func(resourceVersion string) (watch.Interface, error)
+	WatchFunc func(options api.ListOptions) (watch.Interface, error)
 }
 
 func (t *testLW) List(options api.ListOptions) (runtime.Object, error) {
 	return t.ListFunc()
 }
 func (t *testLW) Watch(options api.ListOptions) (watch.Interface, error) {
-	return t.WatchFunc(options.ResourceVersion)
+	return t.WatchFunc(options)
 }
 
 func TestCloseWatchChannelOnError(t *testing.T) {
@@ -47,7 +47,7 @@ func TestCloseWatchChannelOnError(t *testing.T) {
 	pod := &api.Pod{ObjectMeta: api.ObjectMeta{Name: "bar"}}
 	fw := watch.NewFake()
 	r.listerWatcher = &testLW{
-		WatchFunc: func(rv string) (watch.Interface, error) {
+		WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
 			return fw, nil
 		},
 		ListFunc: func() (runtime.Object, error) {
@@ -73,7 +73,7 @@ func TestRunUntil(t *testing.T) {
 	r := NewReflector(&testLW{}, &api.Pod{}, store, 0)
 	fw := watch.NewFake()
 	r.listerWatcher = &testLW{
-		WatchFunc: func(rv string) (watch.Interface, error) {
+		WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
 			return fw, nil
 		},
 		ListFunc: func() (runtime.Object, error) {
@@ -212,7 +212,8 @@ func TestReflectorListAndWatch(t *testing.T) {
 	// inject an error.
 	expectedRVs := []string{"1", "3"}
 	lw := &testLW{
-		WatchFunc: func(rv string) (watch.Interface, error) {
+		WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+			rv := options.ResourceVersion
 			fw := watch.NewFake()
 			if e, a := expectedRVs[0], rv; e != a {
 				t.Errorf("Expected rv %v, but got %v", e, a)
@@ -327,7 +328,7 @@ func TestReflectorListAndWatchWithErrors(t *testing.T) {
 		}
 		watchRet, watchErr := item.events, item.watchErr
 		lw := &testLW{
-			WatchFunc: func(rv string) (watch.Interface, error) {
+			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
 				if watchErr != nil {
 					return nil, watchErr
 				}
@@ -353,25 +354,15 @@ func TestReflectorListAndWatchWithErrors(t *testing.T) {
 func TestReflectorResync(t *testing.T) {
 	s := NewStore(MetaNamespaceKeyFunc)
 
-	currentTime := time.Time{}
 	iteration := 0
 
 	lw := &testLW{
-		WatchFunc: func(rv string) (watch.Interface, error) {
-			if iteration == 0 {
-				// Move time, but do not force resync.
-				currentTime = currentTime.Add(30 * time.Second)
-			} else if iteration == 1 {
-				// Move time to force resync.
-				currentTime = currentTime.Add(28 * time.Second)
-			} else if iteration >= 2 {
-				t.Fatalf("should have forced resync earlier")
-			}
+		WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
 			iteration++
 			fw := watch.NewFake()
-			// Send something to the watcher to avoid "watch too short" errors.
+
 			go func() {
-				fw.Add(&api.Pod{ObjectMeta: api.ObjectMeta{Name: "foo", ResourceVersion: strconv.Itoa(iteration)}})
+				time.Sleep(time.Duration(*options.TimeoutSeconds) * time.Second)
 				fw.Stop()
 			}()
 			return fw, nil
@@ -380,11 +371,15 @@ func TestReflectorResync(t *testing.T) {
 			return &api.PodList{ListMeta: unversioned.ListMeta{ResourceVersion: "0"}}, nil
 		},
 	}
-	resyncPeriod := time.Minute
+	resyncPeriod := 5 * time.Second
 	r := NewReflector(lw, &api.Pod{}, s, resyncPeriod)
-	r.now = func() time.Time { return currentTime }
 
-	r.ListAndWatch(wait.NeverStop)
+	stopCh:= make(chan struct{})
+	go func () {
+		time.Sleep(resyncPeriod)
+		close(stopCh)
+	} ()
+	r.ListAndWatch(stopCh)
 	if iteration != 2 {
 		t.Errorf("exactly 2 iterations were expected, got: %v", iteration)
 	}

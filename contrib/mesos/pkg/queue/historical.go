@@ -377,6 +377,16 @@ func (f *HistoricalFIFO) merge(id string, obj UniqueCopyable) (notifications []E
 	return
 }
 
+// Resync touch all objects in the queue to force notifications to be sent
+func (f *HistoricalFIFO) Resync() error {
+	for _, entry := range f.items {
+		if err := f.Update(entry); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // NewHistorical returns a Store which can be used to queue up items to
 // process. If a non-nil Mux is provided, then modifications to the
 // the FIFO are delivered on a channel specific to this fifo.
