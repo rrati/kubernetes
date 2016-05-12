@@ -216,9 +216,7 @@ func (c *cache) Replace(list []interface{}, resourceVersion string) error {
 
 // Resync touches all items in the store to force processing
 func (c *cache) Resync() error {
-	if err := c.Replace(c.cacheStorage.List(), "0"); err != nil {
-		return err
-	}
+	// Nothing to do
 	return nil
 }
 

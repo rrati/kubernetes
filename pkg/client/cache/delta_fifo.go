@@ -460,7 +460,16 @@ func (f *DeltaFIFO) Replace(list []interface{}, resourceVersion string) error {
 func (f *DeltaFIFO) Resync() error {
 	f.lock.RLock()
 	defer f.lock.RUnlock()
-	for _, obj := range f.listLocked() {
+	for _, k := range f.knownObjects.ListKeys() {
+		obj, exists, err := f.knownObjects.GetByKey(k)
+		if err != nil {
+			glog.Infof("Unexpected error %v during lookup of key %v, unable to queue object for sync", err, k)
+			continue
+		} else if !exists {
+			glog.Infof("Key %v does not exist in known objects store, unable to queue object for sync", k)
+			continue
+		}
+
 		if err := f.queueActionLocked(Sync, obj); err != nil {
 			return fmt.Errorf("couldn't queue object: %v", err)
 		}

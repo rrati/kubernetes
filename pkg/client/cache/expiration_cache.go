@@ -201,13 +201,7 @@ func (c *ExpirationCache) Replace(list []interface{}, resourceVersion string) er
 
 // Resync will touch all objects to put them into the processing queue
 func (c *ExpirationCache) Resync() error {
-	c.expirationLock.Lock()
-	defer c.expirationLock.Unlock()
-	for _, item := range c.cacheStorage.List() {
-		if err := c.updateLocked(item); err != nil {
-			return err
-		}
-	}
+	// Nothing to do
 	return nil
 }
 

@@ -379,14 +379,7 @@ func (f *HistoricalFIFO) merge(id string, obj UniqueCopyable) (notifications []E
 
 // Resync will touch all objects to put them into the processing queue
 func (f *HistoricalFIFO) Resync() error {
-	f.lock.Lock()
-	defer f.lock.Unlock()
-	for id, entry := range f.items {
-		if entry.Is(ADD_EVENT|UPDATE_EVENT) {
-			f.queue = append(f.queue, id)
-		}
-	}
-	f.cond.Broadcast()
+	// Nothing to do
 	return nil
 }
 
