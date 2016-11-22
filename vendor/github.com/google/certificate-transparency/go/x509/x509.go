@@ -338,8 +338,6 @@ var (
 
 func namedCurveFromOID(oid asn1.ObjectIdentifier) elliptic.Curve {
 	switch {
-	case oid.Equal(oidNamedCurveP224):
-		return elliptic.P224()
 	case oid.Equal(oidNamedCurveP256):
 		return elliptic.P256()
 	case oid.Equal(oidNamedCurveP384):
@@ -352,8 +350,6 @@ func namedCurveFromOID(oid asn1.ObjectIdentifier) elliptic.Curve {
 
 func oidFromNamedCurve(curve elliptic.Curve) (asn1.ObjectIdentifier, bool) {
 	switch curve {
-	case elliptic.P224():
-		return oidNamedCurveP224, true
 	case elliptic.P256():
 		return oidNamedCurveP256, true
 	case elliptic.P384():
@@ -1458,9 +1454,6 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub interf
 		hashFunc = crypto.SHA1
 	case *ecdsa.PrivateKey:
 		switch priv.Curve {
-		case elliptic.P224(), elliptic.P256():
-			hashFunc = crypto.SHA256
-			signatureAlgorithm.Algorithm = oidSignatureECDSAWithSHA256
 		case elliptic.P384():
 			hashFunc = crypto.SHA384
 			signatureAlgorithm.Algorithm = oidSignatureECDSAWithSHA384
